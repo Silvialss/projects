@@ -1,0 +1,137 @@
+---
+title: "Foundations_of_Stats_Homework"
+author: "NYC Data Science Academy"
+output: html_document
+---
+## Question #1: Body Temperature
+
+The `Temp.txt` dataset records the body temperatures, gender, and heart rate of 130 individuals; you may assume that the observations are independent of one another.
+
+1. Read the data into R and provide basic numerical EDA to describe the data.
+  + Provide univariate EDA for all variables, and bivariate EDA where appropriate.
+
+2. Provide basic graphical EDA to describe the data.
+  + Provide univariate EDA for all continuous variables, and bivariate EDA where appropriate.
+
+3. You have heard that the average human body temperature is 98.6 degrees Fahrenheit. Does this data support this claim? (Perform a hypothesis test to determine whether the true population mean body temperature is 98.6 degrees Fahrenheit.)
+  + What is a 95% confidence interval for the average human body temperature?
+  + Interpret your results in context of the problem.
+
+4. Is there a significant difference in body temperature between males and females? If so, quantify this difference.
+  + What is a 95% confidence interval for the average difference in human body temperature between males and females?
+  + Interpret your results in context of the problem.
+  + [**Bonus**] If we had collected a lot of samples of the body temperature for different genders, we could have directly compared *the average of the average temperature* for each gender. Hypothesis tests we have covered allow us to deduce the distribution of the average without needing to collect many samples (we have only 65 males and 65 females). Another simple way to achieve this is to **bootstrap**. Random sample (with replacement) 65 observations from each gender, then use them as a new sample. By bootstrapping, derive the 95% confidence interval for the average difference in human body temperature between males and females.
+
+5. You believe the variances of male heart rate and female heart rate are different; specifically, you claim that females have a lower heart rate variance. Test this claim.
+  + What is a 95% confidence interval for the ratio between female and male heart rate variances?
+  + Interpret your results in context of the problem.
+
+```{r, include=FALSE}
+temp = read.table('https://s3.amazonaws.com/graderdata/Temp.txt', header = TRUE)
+library(ggplot2)
+library(dplyr)
+#1. 
+  # Univariate 
+summary(temp)
+  # Bivariate
+f = filter(temp,Gender == 'Female') %>%
+  mutate(.,g = 1)
+m = filter(temp,Gender == 'Male') %>%
+  mutate(.,g = 0)
+ndata = rbind(f,m)
+
+summary(lm(g ~ Body.Temp,data = ndata))
+summary(lm(g ~ Heart.Rate,data = ndata))
+summary(lm(Body.Temp ~ Heart.Rate, data=temp))
+
+#2 
+  #Univariate for Heart.Rate
+ggplot(data = temp, aes(x = Heart.Rate)) + geom_histogram()
+  #Univariate for Body.Temp
+ggplot(data = temp, aes(x = Body.Temp)) + geom_histogram()
+  #Bivariate
+ggplot(data = temp, aes(x = Heart.Rate,y = Body.Temp)) + geom_point(aes(color = Gender)) + geom_smooth(method = 'lm',formula = y~x)
+
+#3 
+t.test(temp$Body.Temp, mu = 98.6, alternative = "two.sided")
+# 95% CI: 98.12 - 98.37
+# We reject the null hypothesis and conclude that the population mean of average human body temperature is smaller than 98.6 Fahrenheit(t = -5.45, p<.001)
+
+#4
+t.test(f$Body.Temp,m$Body.Temp,alternative = 'two.sided')
+#95% CI: 0.04-0.54
+#We reject the null hypothesis and conclude that females have a higher average body temperature than males(t = 2.29, p<0.05)
+  #bootstrap
+BootF = rnorm(65,mean(f$Body.Temp),sd(f$Body.Temp))
+BootM = rnorm(65,mean(m$Body.Temp),sd(m$Body.Temp))
+t.test(BootF,BootM,alternative = 'two.sided')
+# The results of the bootstrap align with our previous t-test. The 95% CI is 0.12 to 0.64. 
+
+#5
+var.test(f$Heart.Rate,m$Heart.Rate,alternative = 'less')
+# The 95% CI is 0.00-2.88 with a p-value 0.9945.We fail to reject the null hypothesis and conclude that the variances of female heart beat is not lower than that of male heart beat. 
+```
+
+## Question #2: Plant Growth
+
+Load the `PlantGrowth` dataset located in the `datasets` library; this dataset contains dried plant weight measurements for the same species of plant under three different conditions (two separate growth treatments, and a control group where no treatment was applied). You may assume that the observations are independent of one another.
+
+1. Create side-by-side boxplots of the plant weights segmented by the type of applied treatment. Describe the features of the graph.
+
+2. Calculate the standard deviations of each conditional distribution of plant weight based on the applied treatment. Do these differ significantly?
+  + **NB**: To avoid increasing our chance of encountering a "false positive," we must avoid applying three separate F-tests (treatment #1 vs treatment #2; treatment #1 vs control; treatment #2 vs control). As an alternative, Bartlett's Test of Homogeneity of Variances allows us to simultaneously test for the similarity of a group of variances, rather than just a pair. Implement this test using the `bartlett.test()` function and report your results.
+  
+3. Is there a significant difference in the weight of plants based on the growth treatments they were given? Conduct a hypothesis test and report your results in context of the problem. 
+  + Given the results of the Bartlett test, is the result of your hypothesis test valid?
+
+
+
+```{r}
+library(datasets)
+library(ggplot2)
+#1
+ggplot(PlantGrowth,aes(x = group,y = weight)) + geom_boxplot()
+# trt1 group has the smallest weight with outliers. trt2 has the largest weight and smaller variances. ctrl group's average weight is in the middle with bigger variances. 
+
+#2
+bartlett.test(PlantGrowth$weight,PlantGrowth$group)
+# We got a K-squared of 2.88 with a p value bigger than .05. We fail to reject the null hypothesis and conclude that the three groups don't differ on standard deviations.
+
+#3 
+summary(aov(PlantGrowth$weight ~ PlantGrowth$group))
+# We reject the null hypothesis and conclude that there is a difference in the weight of plants with different treatment conditons(F(2,27) = 4.84, p < 0.05).
+# However, given the results of the Bartlett test, the results of my hypothesis test is valid because the three groups have achieved a similarity of variances. 
+```
+
+## Question #3: Gender, Hair, & Eye Color
+
+Load the `HairEyeColor` dataset located in the `datasets` library; this is a three dimensional dataset that records the hair color, eye color, and gender of 592 different statistics students.
+
+1. Visualize the entire dataset using a mosaic plot using the following command:
+  + `mosaicplot(HairEyeColor, shade = TRUE)`
+  + Which category combinations receive more observations than expected? Fewer observations than expected?
+  
+2. Reduce your dataset to focus on just females with brown and blue eyes (but still include all hair colors). Create another mosaic plot and describe what you see.
+  + Conduct a hypothesis test to see if hair and eye color are independent of one another for this reduced dataset. Report your results in context of the problem.
+
+3. For the reduced dataset, which category combination contributed most to any statistical deviations? Which category contributed the least? By how much for each?
+
+
+```{r}
+library(datasets)
+library(ggplot2)
+#1
+mosaicplot(HairEyeColor,shade = T)
+# Females with Brown hair and Brown eyes receive more observations and Males with Blond hair and Brown eyes receive fewer observations than expected.
+
+#2 
+FBB = HairEyeColor[,1:2,2]
+mosaicplot(FBB, shade = T)
+chis = chisq.test(FBB)
+# The chi square is 82.72 with a p value smaller than .001. We reject the null hypothesis and conclude that eye and hair color are not independent to each other. There is a relationship between the two variables.
+
+#3 
+round(chis$residuals,3)
+# The Females with Blond hair and Blue eye contributed the most to the independence test. Females with Red hair and Brown eyes contributed the least. 
+```
+
