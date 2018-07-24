@@ -1,0 +1,12 @@
+name: Test
+title: Test
+username:
+account: silvialu
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 386484
+bundleId: 1495831
+url: https://silvialu.shinyapps.io/Test/
+when: 1532376109.11065
+asMultiple: FALSE
+asStatic: FALSE
